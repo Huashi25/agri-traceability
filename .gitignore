@@ -1,0 +1,80 @@
+# ============================================================
+# .gitignore —— 鲜源农产品溯源销售平台
+# 说明：只排除「构建产物 / 依赖 / 本地环境 / 敏感配置 / 用户上传文件」，
+#       所有源码、SQL 脚本、启动脚本均纳入版本管理。
+# ============================================================
+
+# ---------- 1. Maven / Java 构建产物 ----------
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+# 若后续引入 Maven Wrapper，需要放开下面三条，否则他人无法用 ./mvnw 构建
+# !mvnw
+# !maven-wrapper.jar
+# !.mvn/wrapper/maven-wrapper.jar
+
+# ---------- 2. Node / 前端 ----------
+node_modules/
+dist/
+build/
+.npm
+.eslintcache
+*.local
+.vite/
+# 包管理器锁文件按团队习惯选择：本项目提交 package-lock.json（已存在）
+# yarn.lock / pnpm-lock.yaml 若出现则忽略，避免多锁文件冲突
+yarn.lock
+pnpm-lock.yaml
+
+# ---------- 3. 日志 ----------
+logs/
+*.log
+backend/logs/
+
+# ---------- 4. 用户上传文件 ----------
+# 保留目录本身（用 .gitkeep 占位），但不跟踪其中的实际文件
+uploads/*
+!uploads/.gitkeep
+
+# ---------- 5. 本地/敏感配置 ----------
+# 本地覆盖配置一律不入库，避免泄露个人数据库连接信息
+application-local.yml
+application-local.yaml
+application-dev.yml
+application-secret.yml
+.env
+.env.*
+# 例外：.env.example 是模板，需要提交
+!.env.example
+
+# ---------- 6. IDE / 编辑器 ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+# 注意：这里必须写 .vscode/* 而不是 .vscode/。
+# 若整个目录被排除，Git 不会再进入该目录，后面的 ! 例外规则将失效。
+.vscode/*
+# 例外：extensions.json 含推荐插件配置，对协作者有价值，保留
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# ---------- 7. 操作系统 ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---------- 8. 临时/备份 ----------
+*.tmp
+*.bak
+*.bak-*
