@@ -246,7 +246,13 @@ AGRI20260820SCAN004JKL   # 山东大葱（已创建）
 
 ## 七、界面截图
 
-### 7.1 消费者端
+### 7.1 溯源码查询演示
+
+<img src="docs/screenshots/trace-demo.gif" alt="溯源查询演示" width="880">
+
+<p align="center"><sub>输入溯源码 → 点击查询 → 产地、质检、物流三段信息依次展开</sub></p>
+
+### 7.2 消费者端
 
 <table>
   <tr>
@@ -267,7 +273,7 @@ AGRI20260820SCAN004JKL   # 山东大葱（已创建）
   </tr>
 </table>
 
-### 7.2 管理后台
+### 7.3 管理后台
 
 <table>
   <tr>
@@ -279,6 +285,25 @@ AGRI20260820SCAN004JKL   # 山东大葱（已创建）
     <td align="center"><sub><b>溯源批次管理</b> · 批次状态流转与四类溯源信息维护</sub></td>
   </tr>
 </table>
+
+### 7.4 系统设计
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/architecture.png" alt="分层架构" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/er-diagram.png" alt="E-R 图" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>分层架构</b> · 视图 / 控制 / 服务 / 持久 / 数据库</sub></td>
+    <td align="center"><sub><b>E-R 图</b> · 四角色统一映射至 <code>sys_user</code></sub></td>
+  </tr>
+</table>
+
+### 7.5 接口文档
+
+<img src="docs/screenshots/api-docs.png" alt="Knife4j 接口文档" width="900">
+
+<p align="center"><sub>Knife4j / Swagger 自动生成的在线接口文档，共 26 个 Controller 分组</sub></p>
 
 ---
 

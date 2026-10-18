@@ -35,8 +35,8 @@ public class Knife4jConfig {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("农产品溯源销售系统 API文档")
-                .description("基于Spring Boot + MyBatis-Plus的农产品溯源销售平台\n\n"
+                .title("鲜源农产品溯源销售平台 API文档")
+                .description("基于Spring Boot + MyBatis-Plus的鲜源农产品溯源销售平台\n\n"
                         + "角色说明:\n"
                         + "- ADMIN  系统管理员\n"
                         + "- MERCHANT 商家\n"
