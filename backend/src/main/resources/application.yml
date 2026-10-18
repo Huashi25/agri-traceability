@@ -33,8 +33,9 @@ knife4j:
     language: zh_cn
 
 file:
-  # 上传目录：默认使用相对路径，避免把本机绝对路径提交到仓库
-  upload-path: ${UPLOAD_PATH:./uploads}
+  # 上传目录：相对路径基于后端启动目录（cd backend 启动时即仓库根的 uploads/）
+  # 不写死本机绝对路径，避免他人克隆后图片无法访问；可用环境变量 UPLOAD_PATH 覆盖
+  upload-path: ${UPLOAD_PATH:../uploads}
   access-url: http://localhost:8080/uploads
 
 mybatis-plus:

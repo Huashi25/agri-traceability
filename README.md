@@ -1,8 +1,19 @@
 # 鲜源农产品溯源销售平台
 
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-6DB33F?logo=springboot)
+![Vue](https://img.shields.io/badge/Vue-3.4-4FC08D?logo=vuedotjs)
+![Java](https://img.shields.io/badge/Java-8-ED8B00?logo=openjdk)
+![MyBatis-Plus](https://img.shields.io/badge/MyBatis--Plus-3.5.3.1-337AB7)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)
+![Redis](https://img.shields.io/badge/Redis-缓存/降级-DC382D?logo=redis)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
 > 一套面向农产品电商的「**销售 + 全程溯源**」一体化平台：消费者下单前可扫码查看产地、质检、物流全链路信息，农户与商家在后台维护溯源批次数据。
 
 本科毕业设计项目。后端 Spring Boot + MyBatis-Plus，前端 Vue 3 + Element Plus，前后端分离部署。
+
+- 仓库：<https://github.com/Huashi25/agri-traceability>
+- 在线接口文档：启动后端后访问 <http://localhost:8080/doc.html>
 
 ---
 
@@ -144,7 +155,7 @@ agri-traceability/
 │       ├── views/                    # 25 个前台页面
 │       │   └── admin/                # 16 个后台管理页面
 │       └── assets/images/
-├── docs/screenshots/                 # 截图占位目录
+├── docs/screenshots/                 # README 引用的界面截图
 ├── uploads/                          # 上传文件目录（内容不入库，仅保留 .gitkeep）
 ├── backend/sql/                      # 数据库脚本（见 backend/sql/README.md）
 ├── start-website.ps1 / .bat          # Windows 一键启动脚本
@@ -235,16 +246,39 @@ AGRI20260820SCAN004JKL   # 山东大葱（已创建）
 
 ## 七、界面截图
 
-> 截图文件请放入 `docs/screenshots/`，并按下方文件名命名后取消注释即可显示。
+### 7.1 消费者端
 
-<!--
-![首页](docs/screenshots/home.png)
-![商品详情](docs/screenshots/product-detail.png)
-![溯源查询](docs/screenshots/trace-query.png)
-![产地地图](docs/screenshots/origin-map.png)
-![管理后台](docs/screenshots/admin-dashboard.png)
-![溯源批次管理](docs/screenshots/admin-trace.png)
--->
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/home.png" alt="首页" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/product-list.png" alt="商品列表" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>首页</b> · 溯源查询入口与平台数据概览</sub></td>
+    <td align="center"><sub><b>商品列表</b> · 分类筛选、价格排序、加购</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/trace-query.png" alt="溯源查询" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/trace-process.png" alt="溯源详情" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>溯源查询</b> · 输入溯源码，返回批次与流转状态</sub></td>
+    <td align="center"><sub><b>溯源详情</b> · 质检报告与冷链物流完整轨迹</sub></td>
+  </tr>
+</table>
+
+### 7.2 管理后台
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/admin-dashboard.png" alt="数据看板" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/admin-trace.png" alt="溯源批次管理" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>数据看板</b> · 商品/订单/销售额/农户数量统计</sub></td>
+    <td align="center"><sub><b>溯源批次管理</b> · 批次状态流转与四类溯源信息维护</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -254,3 +288,31 @@ AGRI20260820SCAN004JKL   # 山东大葱（已创建）
 - 代码中 `uploads/` 目录下的图片、日志、本地配置均不纳入版本管理。
 - 数据库中的示例商品、农户、公告数据为演示用途，图片链接为外链，长期可能失效。
 - 已知问题（`announcement.type` 字段类型不一致等）记录在 [`backend/sql/README.md`](backend/sql/README.md) 中。
+
+## 九、后续优化方向
+
+以下是我在开发中已经识别、但因毕设周期未展开的改进点，均对应当前代码的真实状态：
+
+| # | 问题 | 现状 | 改进思路 |
+|:---:|---|---|---|
+| 1 | 缓存一致性 | 溯源查询与质量标准都只在**读**时写缓存（TTL 10 / 30 分钟），**更新数据后未主动失效** | 在批次、质检、物流、质量标准的增删改后调用 `cacheService.delete(key)`，或改为更新时直接覆盖 |
+| 2 | 订单超时取消 | 目前只能用户手动取消，全项目**无定时任务**（无 `@Scheduled` / `@EnableScheduling`） | 引入 `@Scheduled` 扫描超时未支付订单，或改用 RocketMQ/RabbitMQ 延迟消息，时效更精确 |
+| 3 | 下单幂等 | 立即购买与购物车结算接口**未做幂等令牌**，重复提交会生成重复订单 | 下单前下发 token，服务端校验并配合唯一索引兜底 |
+| 4 | 测试覆盖 | 仅 3 个 Service 单元测试（订单 / 用户 / 溯源批次），Controller 与 Mapper 层未覆盖 | 补充 MockMvc 接口测试，并对 `deductStock` 这类并发关键点加并发测试 |
+| 5 | 上传文件校验 | 已做 `ALLOWED_TYPES` 白名单与大小限制，但**未校验文件真实内容** | 增加魔数（Magic Number）校验，避免改扩展名绕过 |
+| 6 | 数据脚本一致性 | `announcement.type` 的 DDL 为 `INT`，但部分脚本按字符串插入 | 统一类型，或改列为 `VARCHAR` 并同步实体字段 |
+
+> 第 1、2 条是我在答辩中被问到时最想主动讲的两点——它们说明我知道当前方案的边界在哪，而不只是"跑通了"。
+
+## 十、开源协议
+
+本项目基于 [MIT License](LICENSE) 开源，可自由使用、修改与二次分发，保留版权声明即可。
+
+## 十一、作者
+
+**满成华** · 哈尔滨金融学院 软件工程专业 · 2027 届
+
+- GitHub：<https://github.com/Huashi25>
+- 邮箱：3078575792@qq.com
+
+方向：Java 后端开发 / AI 应用开发。欢迎交流。
