@@ -48,6 +48,14 @@
             <span class="product-name-text">{{ getProductName(row.productId) }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="归属农户" width="130">
+          <template #default="{ row }">
+            <el-tag v-if="row.farmerId" type="success" effect="plain" size="small">
+              {{ getFarmerName(row.farmerId) }}
+            </el-tag>
+            <span v-else class="no-farmer">未指定</span>
+          </template>
+        </el-table-column>
         <el-table-column label="溯源码" width="220">
           <template #default="{ row }">
             <div class="trace-code-cell">
@@ -109,6 +117,17 @@
         <el-form-item label="商品">
           <el-select v-model="batchForm.productId" placeholder="选择商品" filterable style="width: 100%">
             <el-option v-for="p in products" :key="p.id" :label="p.name" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <!-- 归属农户只由管理员指派；农户建批次时后端会强制记在自己名下 -->
+        <el-form-item label="归属农户" v-if="userRole === 'ADMIN'">
+          <el-select v-model="batchForm.farmerId" placeholder="不选则为未指定" clearable filterable style="width: 100%">
+            <el-option
+              v-for="f in farmers"
+              :key="f.id"
+              :label="f.farmName ? `${f.name}（${f.farmName}）` : f.name"
+              :value="f.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="批次编号">
@@ -200,12 +219,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { traceBatchApi, productApi, originApi, inspectionApi, logisticsApi } from '../../api'
+import { traceBatchApi, productApi, originApi, inspectionApi, logisticsApi, farmerApi } from '../../api'
 import { useUserStore } from '../../stores/user'
 
 const userStore = useUserStore()
 const userRole = computed(() => userStore.userInfo?.role || '')
-const canCreateBatch = computed(() => ['ADMIN', 'FARMER'].includes(userRole.value))
+// 商家原本建不了批次（后端注解只放了 ADMIN/FARMER），但页面给了入口，
+// 属于"看得见、点不动"，这里与后端保持一致一并放开
+const canCreateBatch = computed(() => ['ADMIN', 'MERCHANT', 'FARMER'].includes(userRole.value))
 const canDeleteBatch = computed(() => userRole.value === 'ADMIN')
 const canEditOrigin = computed(() => ['ADMIN', 'FARMER'].includes(userRole.value))
 const canEditInspection = computed(() => ['ADMIN', 'FARMER'].includes(userRole.value))
@@ -213,13 +234,15 @@ const canEditLogistics = computed(() => ['ADMIN', 'MERCHANT'].includes(userRole.
 
 const batchList = ref([])
 const products = ref([])
+/** 农户列表，仅用于管理员指派批次归属 */
+const farmers = ref([])
 const loading = ref(false)
 const originMap = ref({})
 const inspectionMap = ref({})
 const logisticsMap = ref({})
 
 const batchDialog = ref(false)
-const batchForm = ref({ productId: null, batchNo: '', traceCode: '' })
+const batchForm = ref({ productId: null, farmerId: null, batchNo: '', traceCode: '' })
 const originDialog = ref(false)
 const originForm = ref({})
 const inspectionDialog = ref(false)
@@ -232,6 +255,11 @@ const statusTagType = (s) => ['warning', 'primary', 'info', 'success'][s] || 'in
 const formatTime = (t) => t ? t.replace('T', ' ').substring(0, 16) : ''
 
 const getProductName = (id) => products.value.find(p => p.id === id)?.name || `商品#${id}`
+/** 把 farmerId 翻译成农户姓名，未指派时给出明确提示而不是空白 */
+const getFarmerName = (farmerId) => {
+  if (!farmerId) return '未指定农户'
+  return farmers.value.find(f => f.id === farmerId)?.name || `农户#${farmerId}`
+}
 const hasOrigin = (batchId) => !!originMap.value[batchId]
 const hasInspection = (batchId) => !!inspectionMap.value[batchId]
 const hasLogistics = (batchId) => !!logisticsMap.value[batchId]
@@ -239,7 +267,8 @@ const hasLogistics = (batchId) => !!logisticsMap.value[batchId]
 const loadBatches = async () => {
   loading.value = true
   try {
-    const res = await traceBatchApi.list()
+    // mine=true：商家只拿到自己商品的批次；管理员/农户传了也不影响（后端仅对 MERCHANT 生效）
+    const res = await traceBatchApi.list(null, true)
     batchList.value = res.data
     for (const b of batchList.value) {
       try {
@@ -256,12 +285,26 @@ const loadBatches = async () => {
 }
 
 const loadProducts = async () => {
-  const res = await productApi.list({})
+  // 商家下拉里只该出现自己的商品，避免给别人的商品建批次
+  const res = await productApi.list({ mine: true })
   products.value = res.data
 }
 
+/**
+ * 加载农户列表，供管理员指派批次归属。
+ * /api/farmer/list 是公开接口，任何登录角色都能取到，不用担心权限。
+ */
+const loadFarmers = async () => {
+  try {
+    const res = await farmerApi.list()
+    farmers.value = res.data || []
+  } catch (e) {
+    console.error('加载农户列表失败', e)
+  }
+}
+
 const openBatchDialog = () => {
-  batchForm.value = { productId: null, batchNo: '', traceCode: '' }
+  batchForm.value = { productId: null, farmerId: null, batchNo: '', traceCode: '' }
   batchDialog.value = true
 }
 
@@ -347,7 +390,7 @@ const handleDelete = async (id) => {
   }
 }
 
-onMounted(() => { loadBatches(); loadProducts() })
+onMounted(() => { loadBatches(); loadProducts(); loadFarmers() })
 </script>
 
 <style scoped>
@@ -366,6 +409,7 @@ onMounted(() => { loadBatches(); loadProducts() })
 
 .batch-no { font-family: monospace; font-size: 13px; color: #666; }
 .product-name-text { font-size: 14px; color: #333; font-weight: 500; }
+.no-farmer { font-size: 12px; color: #c0c4cc; }
 .trace-code-cell { display: flex; align-items: center; gap: 4px; }
 .trace-code { font-family: monospace; font-size: 12px; color: #409eff; background: #f0f7ff; padding: 2px 8px; border-radius: 4px; }
 .trace-status-row { display: flex; gap: 6px; }

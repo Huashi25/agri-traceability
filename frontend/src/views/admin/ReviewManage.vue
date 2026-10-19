@@ -73,12 +73,14 @@ const avgRating = computed(() => {
 const formatTime = (t) => t ? t.replace('T', ' ').substring(0, 10) : ''
 
 const loadList = async () => {
-  const res = await reviewApi.list()
+  // mine=true：后端按登录身份过滤，商家只拿到自己商品的评价，管理员仍是全量
+  const res = await reviewApi.list(null, null, true)
   list.value = res.data
 }
 
 const loadProducts = async () => {
-  const res = await productApi.list({})
+  // 商家只看自己商品，商品名映射也只需要自己的
+  const res = await productApi.list({ mine: true })
   products.value = res.data
 }
 

@@ -72,6 +72,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { statsApi, adminOrderApi } from '../../api'
+import { useUserStore } from '../../stores/user'
+
+const userStore = useUserStore()
+const userRole = computed(() => userStore.userInfo?.role || '')
 
 const loading = ref(false)
 const data = ref({})
@@ -81,13 +85,19 @@ const statusLabels = ['待付款', '已付款', '已发货', '已完成', '已�
 const statusColors = ['#e6a23c', '#409eff', '#909399', '#67c23a', '#f56c6c']
 const statusTagType = (s) => ['warning', 'primary', 'info', 'success', 'danger'][s] || 'info'
 
-const revCards = computed(() => [
-  { title: '总销售额', value: '￥' + Number(data.value.totalRevenue || 0).toFixed(2), icon: 'Money', gradient: 'linear-gradient(135deg,#f56c6c,#c45656)' },
-  { title: '总订单数', value: data.value.orderCount || 0, icon: 'Document', gradient: 'linear-gradient(135deg,#409eff,#337ecc)' },
-  { title: '商品数量', value: data.value.productCount || 0, icon: 'Goods', gradient: 'linear-gradient(135deg,#67c23a,#529b2e)' },
-  { title: '用户数量', value: data.value.userCount || 0, icon: 'User', gradient: 'linear-gradient(135deg,#e6a23c,#b88230)' },
-  { title: '溯源批次', value: data.value.traceCount || 0, icon: 'Connection', gradient: 'linear-gradient(135deg,#722ed1,#531dab)' }
-])
+// 平台级指标（用户数）只对管理员有意义，商家看到的是 0，索性不展示
+const revCards = computed(() => {
+  const cards = [
+    { title: '总销售额', value: '￥' + Number(data.value.totalRevenue || 0).toFixed(2), icon: 'Money', gradient: 'linear-gradient(135deg,#f56c6c,#c45656)' },
+    { title: '总订单数', value: data.value.orderCount || 0, icon: 'Document', gradient: 'linear-gradient(135deg,#409eff,#337ecc)' },
+    { title: '商品数量', value: data.value.productCount || 0, icon: 'Goods', gradient: 'linear-gradient(135deg,#67c23a,#529b2e)' },
+    { title: '溯源批次', value: data.value.traceCount || 0, icon: 'Connection', gradient: 'linear-gradient(135deg,#722ed1,#531dab)' }
+  ]
+  if (userRole.value === 'ADMIN') {
+    cards.splice(3, 0, { title: '用户数量', value: data.value.userCount || 0, icon: 'User', gradient: 'linear-gradient(135deg,#e6a23c,#b88230)' })
+  }
+  return cards
+})
 
 const statusData = computed(() => {
   const os = data.value.orderStatus || {}
@@ -101,14 +111,18 @@ const getPercent = (idx) => {
   return Math.round((count / totalOrders.value) * 100)
 }
 
-const overviewItems = computed(() => [
-  { label: '商品', value: data.value.productCount || 0, icon: 'Goods', color: '#409eff' },
-  { label: '订单', value: data.value.orderCount || 0, icon: 'Document', color: '#67c23a' },
-  { label: '农户', value: data.value.farmerCount || 0, icon: 'UserFilled', color: '#e6a23c' },
-  { label: '评价', value: data.value.reviewCount || 0, icon: 'ChatDotRound', color: '#f56c6c' },
-  { label: '溯源', value: data.value.traceCount || 0, icon: 'Connection', color: '#722ed1' },
-  { label: '用户', value: data.value.userCount || 0, icon: 'User', color: '#909399' }
-])
+const overviewItems = computed(() => {
+  const items = [
+    { label: '商品', value: data.value.productCount || 0, icon: 'Goods', color: '#409eff' },
+    { label: '订单', value: data.value.orderCount || 0, icon: 'Document', color: '#67c23a' },
+    { label: '农户', value: data.value.farmerCount || 0, icon: 'UserFilled', color: '#e6a23c', adminOnly: true },
+    { label: '评价', value: data.value.reviewCount || 0, icon: 'ChatDotRound', color: '#f56c6c' },
+    { label: '溯源', value: data.value.traceCount || 0, icon: 'Connection', color: '#722ed1' },
+    { label: '用户', value: data.value.userCount || 0, icon: 'User', color: '#909399', adminOnly: true }
+  ]
+  // 农户数与用户数是平台口径，商家看到的是 0，不展示
+  return items.filter((i) => !i.adminOnly || userRole.value === 'ADMIN')
+})
 
 const loadData = async () => {
   loading.value = true

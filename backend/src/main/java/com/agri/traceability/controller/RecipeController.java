@@ -130,7 +130,7 @@ public class RecipeController {
  }
 
  @PostMapping("/{id}/products")
- @RequireRole({"ADMIN", "MERCHANT"})
+ @RequireRole({"ADMIN"})
  public Result<Void> saveProducts(@PathVariable Long id, @RequestBody List<RecipeProduct> products) {
  recipeProductService.remove(new QueryWrapper<RecipeProduct>().eq("recipe_id", id));
  if (products != null && !products.isEmpty()) {
@@ -143,21 +143,21 @@ public class RecipeController {
  }
 
  @PostMapping
- @RequireRole({"ADMIN", "MERCHANT"})
+ @RequireRole({"ADMIN"})
  public Result<Long> save(@RequestBody Recipe recipe) {
  recipeService.saveOrUpdate(recipe);
  return Result.success(recipe.getId());
  }
 
     @PutMapping
-    @RequireRole({"ADMIN", "MERCHANT"})
+    @RequireRole({"ADMIN"})
     public Result<Void> update(@RequestBody Recipe recipe) {
         recipeService.updateById(recipe);
         return Result.success();
     }
 
     @DeleteMapping("/{id}")
-    @RequireRole({"ADMIN", "MERCHANT"})
+    @RequireRole({"ADMIN"})
     public Result<Void> delete(@PathVariable Long id) {
         recipeService.removeById(id);
         recipeProductService.remove(new QueryWrapper<RecipeProduct>().eq("recipe_id", id));

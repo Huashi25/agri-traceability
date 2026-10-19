@@ -74,6 +74,14 @@
         <el-table-column label="产地" width="120">
           <template #default="{ row }">{{ row.origin || '-' }}</template>
         </el-table-column>
+        <!-- 归属列仅管理员可见：商家只能看到自己的商品，这一列对他是废话 -->
+        <el-table-column v-if="isAdmin" label="归属" width="110">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="row.merchantId ? 'warning' : 'info'">
+              {{ merchantLabel(row.merchantId) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-switch v-model="row.status" :active-value="1" :inactive-value="0" size="small"
@@ -140,6 +148,13 @@
           </el-upload>
           <div class="upload-tip">支持 JPG/PNG/GIF/WEBP，不超过 5MB</div>
         </el-form-item>
+        <!-- 归属商家：只有管理员能指派。商家新增/编辑时后端会强制改回自己，所以不对他展示 -->
+        <el-form-item label="归属商家" v-if="isAdmin">
+          <el-select v-model="form.merchantId" placeholder="不选 = 平台自营" clearable style="width: 100%">
+            <el-option v-for="m in merchants" :key="m.id" :label="m.realName || m.username" :value="m.id" />
+          </el-select>
+          <div class="upload-tip">不选表示平台自营，只有管理员能管理该商品</div>
+        </el-form-item>
         <el-form-item label="状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="上架" inactive-text="下架" />
         </el-form-item>
@@ -155,7 +170,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { productApi, categoryApi, uploadApi } from '../../api'
+import { productApi, categoryApi, uploadApi, userApi } from '../../api'
+import { useUserStore } from '../../stores/user'
 
 import durianImg from '../../assets/images/product-durian.jpg'
 import orangeImg from '../../assets/images/product-orange.jpg'
@@ -178,6 +194,37 @@ const editId = ref(null)
 const searchKey = ref('')
 const form = ref({})
 
+// 当前登录身份：管理员才能看到「归属商家」并做指派
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.isAdmin)
+// 商家候选列表（仅管理员会去拉取，接口本身也是 ADMIN 专属）
+const merchants = ref([])
+
+/**
+ * 加载商家账号列表，用于「归属商家」下拉。
+ * 接口 GET /api/user/list 仅 ADMIN 可调用，故只对管理员发起请求。
+ */
+const loadMerchants = async () => {
+  if (!isAdmin.value) return
+  try {
+    const res = await userApi.list()
+    merchants.value = (res.data || []).filter(u => u.role === 'MERCHANT')
+  } catch (e) {
+    // 拉不到商家列表不应阻塞商品管理主流程，静默降级为「只能选平台自营」
+    merchants.value = []
+  }
+}
+
+/**
+ * 把 merchantId 翻译成可读名称。
+ * @param {number|null} id 归属商家 ID，null/undefined 表示平台自营
+ */
+const merchantLabel = (id) => {
+  if (!id) return '平台自营'
+  const m = merchants.value.find(x => x.id === id)
+  return m ? (m.realName || m.username) : `商家#${id}`
+}
+
 const filteredList = computed(() => {
   if (!searchKey.value) return list.value
   return list.value.filter(i => i.name?.includes(searchKey.value))
@@ -186,7 +233,9 @@ const filteredList = computed(() => {
 const loadList = async () => {
   loading.value = true
   try {
-    const res = await productApi.list({})
+    // mine: true —— 让后端按当前登录身份过滤：商家只返回自己名下商品，
+    // 管理员仍返回全部（后端对 ADMIN 不做限制）
+    const res = await productApi.list({ mine: true })
     list.value = res.data
   } finally { loading.value = false }
 }
@@ -206,7 +255,8 @@ const openDialog = (row) => {
     form.value = { ...row }
   } else {
     editId.value = null
-    form.value = { name: '', categoryId: null, price: 0, originalPrice: null, stock: 0, origin: '', description: '', status: 1 }
+    // merchantId 默认 null = 平台自营；管理员可在弹窗里改派
+    form.value = { name: '', categoryId: null, price: 0, originalPrice: null, stock: 0, origin: '', description: '', status: 1, merchantId: null }
   }
   dialogVisible.value = true
 }
@@ -255,7 +305,7 @@ const handleDelete = async (id) => {
   loadList()
 }
 
-onMounted(() => { loadList(); loadCategories() })
+onMounted(() => { loadList(); loadCategories(); loadMerchants() })
 </script>
 
 <style scoped>

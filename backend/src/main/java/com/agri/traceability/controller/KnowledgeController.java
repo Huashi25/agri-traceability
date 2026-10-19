@@ -64,7 +64,7 @@ public class KnowledgeController {
     }
 
     @GetMapping("/admin/list")
-    @RequireRole({"ADMIN", "MERCHANT"})
+    @RequireRole({"ADMIN"})
     public Result<List<KnowledgeArticle>> adminList() {
         QueryWrapper<KnowledgeArticle> wrapper = new QueryWrapper<>();
         wrapper.orderByDesc("sort", "create_time");
@@ -72,21 +72,21 @@ public class KnowledgeController {
     }
 
     @PostMapping
-    @RequireRole({"ADMIN", "MERCHANT"})
+    @RequireRole({"ADMIN"})
     public Result<Void> save(@RequestBody KnowledgeArticle article) {
         knowledgeArticleService.saveOrUpdate(article);
         return Result.success();
     }
 
     @PutMapping
-    @RequireRole({"ADMIN", "MERCHANT"})
+    @RequireRole({"ADMIN"})
     public Result<Void> update(@RequestBody KnowledgeArticle article) {
         knowledgeArticleService.updateById(article);
         return Result.success();
     }
 
     @DeleteMapping("/{id}")
-    @RequireRole({"ADMIN", "MERCHANT"})
+    @RequireRole({"ADMIN"})
     public Result<Void> delete(@PathVariable Long id) {
         knowledgeArticleService.removeById(id);
         return Result.success();

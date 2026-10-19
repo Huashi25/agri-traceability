@@ -84,17 +84,20 @@ UPDATE farmer_info SET longitude=109.5083, latitude=18.3200, ... WHERE name='王
 
 ### 6. 初始密码是明文，启动后自动加密
 
-`init.sql` 中密码以明文存放（如 `123456`）。后端启动时 `PasswordMigrationRunner` 会扫描 `sys_user`，把不以 `$2a$` 开头的密码用 BCrypt 重新加密并回写；登录校验使用 `passwordEncoder.matches()`，因此**用明文密码仍然可以正常登录**。
+`init.sql` 中密码以明文存放。后端启动时 `PasswordMigrationRunner` 会扫描 `sys_user`，把不以 `$2a$` 开头的密码用 BCrypt 重新加密并回写；登录校验使用 `passwordEncoder.matches()`，因此**首次启动后用明文密码仍可正常登录**，之后再改密码就以密文为准。
+
+> 明文初始密码**不写进本文档**（仓库是公开的）。需要时直接查 `init.sql`。
 
 ---
 
 ## 四、初始化后的默认账号
 
-| 用户名 | 密码 | 角色 | 说明 |
-|---|---|---|---|
-| `admin` | `admin123` | `ADMIN` | 系统管理员，全部后台权限 |
-| `merchant` | `123456` | `MERCHANT` | 商家，商品 / 订单 / 评价管理 |
-| `farmer01` | `123456` | `FARMER` | 农户（关联 `farmer_info.id = 1` 王建国），产地 / 溯源批次管理 |
-| `consumer` | `123456` | `CONSUMER` | 消费者，下单 / 收藏 / 溯源查询 |
+| 用户名 | 角色 | 说明 |
+|---|---|---|
+| `admin` | `ADMIN` | 系统管理员，全部后台权限 |
+| `merchant` | `MERCHANT` | 商家，自己名下商品 / 含自家商品的订单 / 溯源批次 / 库存预警 / 待发货工作台 |
+| `farmer01` | `FARMER` | 农户（关联 `farmer_info.id = 1` 王建国），自家产地与溯源批次 |
+| `consumer` | `CONSUMER` | 消费者，下单 / 收藏 / 溯源查询 |
 
+> 初始密码只在 `init.sql` 里，本文档不复制。**首次登录后请立即修改；生产环境请删除全部演示账号。**
 > 角色权限映射见前端 `frontend/src/views/admin/AdminLayout.vue` 中的 `rolePermissions`。

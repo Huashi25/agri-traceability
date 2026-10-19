@@ -51,7 +51,8 @@ export const orderApi = {
 
 // 溯源批次接口
 export const traceBatchApi = {
-  list: (productId) => request.get('/trace/batch/list', { params: { productId } }),
+  // mine=true 时后端按当前登录商家过滤（只返回自己商品的批次）；消费者端不传，行为不变
+  list: (productId, mine) => request.get('/trace/batch/list', { params: { productId, mine } }),
   getById: (id) => request.get(`/trace/batch/${id}`),
   create: (data) => request.post('/trace/batch', data),
   update: (data) => request.put('/trace/batch', data),
@@ -95,7 +96,16 @@ export const adminOrderApi = {
   ship: (id) => request.put(`/admin/order/ship/${id}`),
   cancel: (id) => request.put(`/admin/order/cancel/${id}`),
   update: (data) => request.put('/admin/order', data),
-  stats: () => request.get('/admin/order/stats')
+  stats: () => request.get('/admin/order/stats'),
+  // 待发货工作台：一次返回订单 + 明细，商家只拿到含自己商品的订单
+  pendingShip: () => request.get('/admin/order/pending-ship'),
+  // 批量发货：ids 为订单 ID 数组，返回 { success, failed[] }
+  batchShip: (ids) => request.put('/admin/order/batch-ship', { ids })
+}
+
+// 库存预警接口（商家后台）
+export const stockApi = {
+  warning: (threshold) => request.get('/admin/stock/warning', { params: { threshold } })
 }
 
 // 数据统计接口
@@ -114,7 +124,9 @@ export const farmerApi = {
 
 // 评价接口
 export const reviewApi = {
-  list: (productId, pagination) => request.get('/review/list', { params: { productId, ...pagination } }),
+  // mine=true 时后端按当前登录商家过滤（只返回自己商品的评价）；
+  // 消费者端与后台管理员不传该参数，行为不变
+  list: (productId, pagination, mine) => request.get('/review/list', { params: { productId, ...pagination, mine } }),
   save: (data) => request.post('/review', data),
   update: (data) => request.put('/review', data),
   delete: (id) => request.delete(`/review/${id}`)

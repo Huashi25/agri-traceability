@@ -64,7 +64,16 @@
     <el-dialog v-model="dialogVisible" :title="editId ? '编辑用户' : '添加用户'" width="450px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="用户名"><el-input v-model="form.username" /></el-form-item>
-        <el-form-item label="密码"><el-input v-model="form.password" type="password" show-password placeholder="留空不修改" /></el-form-item>
+        <el-form-item label="密码" :required="!editId">
+          <el-input
+            v-model="form.password"
+            type="password"
+            show-password
+            minlength="6"
+            maxlength="20"
+            :placeholder="editId ? '留空则不修改密码，重置请输入 6-20 位' : '必填，6-20 位'"
+          />
+        </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="姓名"><el-input v-model="form.realName" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="手机号"><el-input v-model="form.phone" /></el-form-item></el-col>
@@ -117,8 +126,12 @@ const openDialog = (row) => {
 
 const handleSave = async () => {
   if (!form.value.username) { ElMessage.warning('请输入用户名'); return }
+  // 密码规则：新增必填；编辑留空表示不修改。非空时统一要求 6-20 位
+  const pwd = form.value.password || ''
+  if (!editId.value && !pwd) { ElMessage.warning('新增用户必须设置密码（6-20 位）'); return }
+  if (pwd && (pwd.length < 6 || pwd.length > 20)) { ElMessage.warning('密码长度必须为 6-20 位'); return }
   if (editId.value) { await userApi.update(form.value) }
-  else { if (!form.value.password) { ElMessage.warning('请输入密码'); return }; await userApi.save(form.value) }
+  else { await userApi.save(form.value) }
   ElMessage.success('保存成功'); dialogVisible.value = false; loadList()
 }
 

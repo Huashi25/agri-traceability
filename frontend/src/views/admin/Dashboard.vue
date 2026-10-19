@@ -124,7 +124,8 @@ const allStatCards = [
   { title: '总销售额', value: () => '￥' + Number(overview.value.totalRevenue || 0).toFixed(2), icon: 'Money', gradient: 'linear-gradient(135deg, #F59E0B, #E65100)', color: '#F59E0B', roles: ['ADMIN', 'MERCHANT'] },
   { title: '用户数量', value: () => overview.value.userCount || 0, icon: 'User', gradient: 'linear-gradient(135deg, #9C27B0, #6A1B9A)', color: '#9C27B0', roles: ['ADMIN'] },
   { title: '溯源批次', value: () => overview.value.traceCount || 0, icon: 'Connection', gradient: 'linear-gradient(135deg, #E53935, #C62828)', color: '#E53935', roles: ['ADMIN', 'MERCHANT', 'FARMER'] },
-  { title: '农户数量', value: () => overview.value.farmerCount || 0, icon: 'OfficeBuilding', gradient: 'linear-gradient(135deg, #009688, #00695C)', color: '#009688', roles: ['ADMIN', 'FARMER'] }
+  // 农户数量属于平台口径，农户账号只需要看自己的批次，不给这张卡
+  { title: '农户数量', value: () => overview.value.farmerCount || 0, icon: 'OfficeBuilding', gradient: 'linear-gradient(135deg, #009688, #00695C)', color: '#009688', roles: ['ADMIN'] }
 ]
 
 const statCards = computed(() => allStatCards
@@ -133,7 +134,9 @@ const statCards = computed(() => allStatCards
 )
 
 const showSalesSection = computed(() => ['ADMIN', 'MERCHANT'].includes(userRole.value))
-const showContentStats = computed(() => ['ADMIN', 'MERCHANT'].includes(userRole.value))
+// 内容类统计（百科/食谱/FAQ/时令/公告）已经收紧为管理员专属功能，
+// 商家看到的入口点进去只会被踢回仪表盘，所以整块不再对商家展示
+const showContentStats = computed(() => userRole.value === 'ADMIN')
 const showSystemFeatures = computed(() => userRole.value === 'ADMIN')
 
 const orderStatusItems = computed(() => {

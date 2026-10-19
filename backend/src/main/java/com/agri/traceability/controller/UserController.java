@@ -2,6 +2,7 @@ package com.agri.traceability.controller;
 
 import com.agri.traceability.common.RequireRole;
 import com.agri.traceability.common.Result;
+import com.agri.traceability.common.UserContext;
 import com.agri.traceability.entity.SysUser;
 import com.agri.traceability.service.SysUserService;
 import io.swagger.annotations.Api;
@@ -10,6 +11,8 @@ import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,24 +39,42 @@ public class UserController {
     @ApiOperation("用户注册")
     @PostMapping("/register")
     public Result<Void> register(@RequestBody SysUser user) {
-        if (userService.register(user)) {
-            return Result.success();
+        try {
+            if (userService.register(user)) {
+                return Result.success();
+            }
+            return Result.error("用户名已存在");
+        } catch (IllegalArgumentException e) {
+            // 密码强度等参数校验失败，把具体原因返回给前端
+            return Result.error(e.getMessage());
         }
-        return Result.error("用户名已存在");
     }
 
     @ApiOperation("获取用户列表（管理员）")
     @GetMapping("/list")
     @RequireRole({"ADMIN"})
     public Result list() {
-        return Result.success(userService.list());
+        // 密码属于敏感字段，列表接口统一脱敏，不返回任何形式的密码
+        List<SysUser> users = userService.list();
+        if (users != null) {
+            users.forEach(u -> u.setPassword(null));
+        }
+        return Result.success(users);
     }
 
     @ApiOperation("根据ID获取用户信息")
     @GetMapping("/{id}")
-    public Result<SysUser> getById(@PathVariable Long id) {
+    public Result<SysUser> getById(@PathVariable Long id, HttpServletRequest request) {
+        // 信息泄露防护：手机号、邮箱属于敏感信息，管理员可查任何人，普通用户只能查自己
+        if (!UserContext.isAdmin(request)) {
+            Long currentUserId = UserContext.currentUserId(request);
+            if (currentUserId == null || !currentUserId.equals(id)) {
+                return Result.error("无权查看其他用户的信息");
+            }
+        }
         SysUser user = userService.getById(id);
         if (user != null) {
+            // 密码一律不返回
             user.setPassword(null);
         }
         return Result.success(user);
@@ -63,15 +84,35 @@ public class UserController {
     @PostMapping
     @RequireRole({"ADMIN"})
     public Result<Void> save(@RequestBody SysUser user) {
-        userService.saveOrUpdate(user);
-        return Result.success();
+        try {
+            userService.saveOrUpdate(user);
+            return Result.success();
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     @ApiOperation("更新用户信息")
     @PutMapping
-    public Result<Void> update(@RequestBody SysUser user) {
-        userService.updateById(user);
-        return Result.success();
+    public Result<Void> update(@RequestBody SysUser user, HttpServletRequest request) {
+        // 越权防护：管理员可改任何人；普通用户只能改自己，且不允许改角色与状态（防止自我提权）
+        if (!UserContext.isAdmin(request)) {
+            Long currentUserId = UserContext.currentUserId(request);
+            if (currentUserId == null || user.getId() == null
+                    || !currentUserId.equals(user.getId())) {
+                return Result.error("无权修改其他用户的信息");
+            }
+            // 置空后 MyBatis-Plus 不会更新这两个字段
+            user.setRole(null);
+            user.setStatus(null);
+        }
+        try {
+            // 密码为空串表示不修改密码，由 Service 层处理
+            userService.updateById(user);
+            return Result.success();
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     @ApiOperation("删除用户（管理员）")
@@ -81,4 +122,5 @@ public class UserController {
         userService.removeById(id);
         return Result.success();
     }
+
 }

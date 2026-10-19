@@ -3,20 +3,25 @@ package com.agri.traceability.controller;
 import com.agri.traceability.common.PageResult;
 import com.agri.traceability.common.RequireRole;
 import com.agri.traceability.common.Result;
+import com.agri.traceability.common.UserContext;
 import com.agri.traceability.entity.*;
 import com.agri.traceability.service.*;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/review")
 public class ProductReviewController {
@@ -32,10 +37,23 @@ public class ProductReviewController {
     @GetMapping("/list")
     public Result list(@RequestParam(required = false) Long productId,
                        @RequestParam(required = false) Integer page,
-                       @RequestParam(required = false) Integer pageSize) {
+                       @RequestParam(required = false) Integer pageSize,
+                       @RequestParam(required = false) Boolean mine,
+                       HttpServletRequest request) {
         QueryWrapper<ProductReview> wrapper = new QueryWrapper<>();
         if (productId != null) wrapper.eq("product_id", productId);
         wrapper.eq("status", 1);
+
+        // 商家后台评价管理：只看自己名下商品的评价。
+        // 消费者端（含游客）不传 mine，行为与改造前完全一致。
+        if (Boolean.TRUE.equals(mine) && UserContext.ROLE_MERCHANT.equals(UserContext.currentRole(request))) {
+            List<Long> myProductIds = merchantProductIds(UserContext.currentUserId(request));
+            if (myProductIds.isEmpty()) {
+                return Result.success(Collections.emptyList());
+            }
+            wrapper.in("product_id", myProductIds);
+        }
+
         wrapper.orderByDesc("create_time");
         if (page != null && pageSize != null) {
             IPage<ProductReview> pageResult = reviewService.page(new Page<>(page, pageSize), wrapper);
@@ -112,20 +130,66 @@ public class ProductReviewController {
 
     @PutMapping
     @RequireRole({"ADMIN", "MERCHANT"})
-    public Result<Void> update(@RequestBody ProductReview review) {
+    public Result<Void> update(@RequestBody ProductReview review, HttpServletRequest request) {
+        ProductReview exists = review.getId() == null ? null : reviewService.getById(review.getId());
+        if (exists == null) {
+            return Result.error("评价不存在");
+        }
+        // 商家只能处理自己商品的评价，否则可以随意隐藏/恢复他人的评价
+        if (!UserContext.isAdmin(request) && !ownsProduct(request, exists.getProductId())) {
+            log.warn("越权修改评价被拦截: reviewId={}, currentUserId={}, productId={}",
+                    review.getId(), UserContext.currentUserId(request), exists.getProductId());
+            return Result.error("无权操作该评价");
+        }
         reviewService.updateById(review);
-        recalculateRating(review.getProductId());
+        // 用库里的 productId 重算，避免请求体不带 productId 时算错/空指针
+        recalculateRating(exists.getProductId());
         return Result.success();
     }
 
     @DeleteMapping("/{id}")
     @RequireRole({"ADMIN", "MERCHANT"})
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
         ProductReview review = reviewService.getById(id);
         if (review != null) {
+            if (!UserContext.isAdmin(request) && !ownsProduct(request, review.getProductId())) {
+                log.warn("越权删除评价被拦截: reviewId={}, currentUserId={}, productId={}",
+                        id, UserContext.currentUserId(request), review.getProductId());
+                return Result.error("无权操作该评价");
+            }
             reviewService.removeById(id);
             recalculateRating(review.getProductId());
         }
         return Result.success();
+    }
+
+    // ==================== 归属判定（私有工具方法） ====================
+
+    /**
+     * 判断当前登录商家是否拥有指定商品。
+     * 管理员不走这里（调用前已放行）。
+     */
+    private boolean ownsProduct(HttpServletRequest request, Long productId) {
+        Long merchantId = UserContext.currentUserId(request);
+        if (merchantId == null || productId == null) {
+            return false;
+        }
+        Product product = productService.getById(productId);
+        return product != null && merchantId.equals(product.getMerchantId());
+    }
+
+    /**
+     * 查询某商家名下的商品 ID 列表。
+     */
+    private List<Long> merchantProductIds(Long merchantId) {
+        if (merchantId == null) {
+            return Collections.emptyList();
+        }
+        QueryWrapper<Product> wrapper = new QueryWrapper<>();
+        wrapper.select("id").eq("merchant_id", merchantId);
+        return productService.list(wrapper).stream()
+                .map(Product::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 }

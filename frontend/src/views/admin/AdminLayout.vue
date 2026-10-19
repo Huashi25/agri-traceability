@@ -23,11 +23,17 @@
         <el-menu-item index="/admin/products" v-if="canView('products')">
           <el-icon><Goods /></el-icon><span>商品管理</span>
         </el-menu-item>
+        <el-menu-item index="/admin/stock-warning" v-if="canView('stockWarning')">
+          <el-icon><Warning /></el-icon><span>库存预警</span>
+        </el-menu-item>
         <el-menu-item index="/admin/categories" v-if="canView('categories')">
           <el-icon><Folder /></el-icon><span>分类管理</span>
         </el-menu-item>
         <el-menu-item index="/admin/orders" v-if="canView('orders')">
           <el-icon><Document /></el-icon><span>订单管理</span>
+        </el-menu-item>
+        <el-menu-item index="/admin/shipments" v-if="canView('shipments')">
+          <el-icon><Van /></el-icon><span>待发货工作台</span>
         </el-menu-item>
         <div class="menu-divider"></div>
         <el-menu-item index="/admin/trace" v-if="canView('trace')">
@@ -132,15 +138,17 @@ const rolePermissions = {
   dashboard: ['ADMIN', 'MERCHANT', 'FARMER'],
   statistics: ['ADMIN', 'MERCHANT'],
   products: ['ADMIN', 'MERCHANT'],
+  stockWarning: ['ADMIN', 'MERCHANT'],
   categories: ['ADMIN'],
   orders: ['ADMIN', 'MERCHANT'],
+  shipments: ['ADMIN', 'MERCHANT'],
   trace: ['ADMIN', 'MERCHANT', 'FARMER'],
   origins: ['ADMIN', 'FARMER'],
   farmers: ['ADMIN', 'FARMER'],
   reviews: ['ADMIN', 'MERCHANT'],
   announcements: ['ADMIN'],
-  knowledge: ['ADMIN', 'MERCHANT'],
-  recipes: ['ADMIN', 'MERCHANT'],
+  knowledge: ['ADMIN'],
+  recipes: ['ADMIN'],
   faqs: ['ADMIN'],
   seasonal: ['ADMIN'],
   users: ['ADMIN']
@@ -174,8 +182,10 @@ const pageTitle = computed(() => {
     '/admin': '仪表盘',
     '/admin/statistics': '数据统计',
     '/admin/products': '商品管理',
+    '/admin/stock-warning': '库存预警',
     '/admin/categories': '分类管理',
     '/admin/orders': '订单管理',
+    '/admin/shipments': '待发货工作台',
     '/admin/trace': '溯源管理',
     '/admin/origins': '产地信息管理',
     '/admin/farmers': '农户管理',
@@ -195,8 +205,10 @@ const pageSubtitle = computed(() => {
     '/admin': '系统数据总览',
     '/admin/statistics': '销售数据与平台指标分析',
     '/admin/products': '管理商品信息和库存',
+    '/admin/stock-warning': '低于预警阈值的商品，及时补货避免断单',
     '/admin/categories': '管理商品分类',
     '/admin/orders': '查看和管理所有订单',
+    '/admin/shipments': '集中处理已付款待发货的订单，支持批量发货',
     '/admin/trace': '管理溯源批次和溯源信息',
     '/admin/origins': '维护各溯源批次的产地溯源信息',
     '/admin/farmers': '管理农户和种植信息',

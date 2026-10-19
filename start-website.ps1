@@ -106,8 +106,7 @@ Write-Host ""
 Write-Host "  前端地址: http://localhost:5173" -ForegroundColor White
 Write-Host "  后端地址: http://localhost:8080" -ForegroundColor White
 Write-Host ""
-Write-Host "  登录账号: admin" -ForegroundColor Yellow
-Write-Host "  登录密码: admin123" -ForegroundColor Yellow
+Write-Host "  登录账号: 见 backend/sql/init.sql（演示账号密码不在此处显示）" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  浏览器即将自动打开..." -ForegroundColor Cyan
 Write-Host ""

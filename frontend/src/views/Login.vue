@@ -48,7 +48,7 @@
                 <el-input v-model="registerForm.username" placeholder="请输入用户名" prefix-icon="User" size="large" />
               </el-form-item>
               <el-form-item label="密码">
-                <el-input v-model="registerForm.password" type="password" placeholder="请输入密码" show-password prefix-icon="Lock" size="large" />
+                <el-input v-model="registerForm.password" type="password" placeholder="请输入 6-20 位密码" show-password prefix-icon="Lock" size="large" minlength="6" maxlength="20" />
               </el-form-item>
               <el-form-item label="真实姓名">
                 <el-input v-model="registerForm.realName" placeholder="请输入真实姓名" size="large" />
@@ -66,12 +66,6 @@
             </el-form>
           </el-tab-pane>
         </el-tabs>
-        <div class="demo-tip">
-          <div>管理员: admin / admin123</div>
-          <div>商家: merchant / 123456</div>
-          <div>农户: farmer01 / 123456</div>
-          <div>客户: consumer / 123456</div>
-        </div>
       </div>
     </div>
   </div>
@@ -113,6 +107,12 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   if (!registerForm.value.username || !registerForm.value.password) {
     ElMessage.warning('请输入用户名和密码')
+    return
+  }
+  // 前端先拦一道长度，避免无效请求；后端 SysUserServiceImpl 仍有同样校验，绕过前端也无效
+  const pwdLen = registerForm.value.password.length
+  if (pwdLen < 6 || pwdLen > 20) {
+    ElMessage.warning('密码长度必须为 6-20 位')
     return
   }
   try {
@@ -239,15 +239,6 @@ const handleRegister = async () => {
 .login-tabs :deep(.el-form-item__label) {
   font-weight: 500;
   color: #555;
-}
-.demo-tip {
-  margin-top: 20px;
-  padding: 12px;
-  background: #f0f9eb;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #67c23a;
-  line-height: 1.8;
 }
 @media (max-width: 768px) {
   .login-left { display: none; }
