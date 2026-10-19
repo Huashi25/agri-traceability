@@ -18,6 +18,15 @@
       <div class="stat-chip"><span class="chip-label">农户</span><span class="chip-num blue">{{ list.filter(u => u.role === 'FARMER').length }}</span></div>
       <div class="stat-chip"><span class="chip-label">客户</span><span class="chip-num green">{{ list.filter(u => u.role === 'CONSUMER').length }}</span></div>
       <div class="stat-chip"><span class="chip-label">正常</span><span class="chip-num blue">{{ list.filter(u => u.status === 1).length }}</span></div>
+      <!-- 待审核商家：自助注册的商家 status=0，点一下只看这些，方便挨个审核 -->
+      <div
+        class="stat-chip clickable"
+        :class="{ active: pendingOnly }"
+        @click="pendingOnly = !pendingOnly"
+      >
+        <span class="chip-label">{{ pendingOnly ? '正在看：待审核商家' : '待审核商家' }}</span>
+        <span class="chip-num orange">{{ pendingMerchants.length }}</span>
+      </div>
     </div>
 
     <div class="table-card">
@@ -35,9 +44,11 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="角色" width="100">
+        <el-table-column label="角色" width="150">
           <template #default="{ row }">
             <el-tag :type="roleTagType(row.role)" effect="dark" size="small">{{ roleText(row.role) }}</el-tag>
+            <!-- 自助注册的商家在审核通过前状态为 0，这里明确标出来 -->
+            <el-tag v-if="row.role === 'MERCHANT' && row.status === 0" type="info" effect="plain" size="small" style="margin-left: 4px">待审核</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="手机号" width="140">
@@ -106,14 +117,23 @@ const dialogVisible = ref(false)
 const editId = ref(null)
 const searchKey = ref('')
 const form = ref({})
+/** 是否只看待审核商家（status=0 且 role=MERCHANT） */
+const pendingOnly = ref(false)
+/** 待审核商家列表，用于统计条计数 */
+const pendingMerchants = computed(() => list.value.filter(u => u.role === 'MERCHANT' && u.status === 0))
 
 const roleText = (r) => ({ ADMIN: '系统管理员', MERCHANT: '商家', FARMER: '农户', CONSUMER: '客户' }[r] || r)
 const roleTagType = (r) => ({ ADMIN: 'danger', MERCHANT: 'warning', FARMER: 'primary', CONSUMER: 'success' }[r] || 'info')
 const roleColor = (r) => ({ ADMIN: 'linear-gradient(135deg,#f56c6c,#c45656)', MERCHANT: 'linear-gradient(135deg,#e6a23c,#b88230)', FARMER: 'linear-gradient(135deg,#409eff,#337ecc)', CONSUMER: 'linear-gradient(135deg,#67c23a,#529b2e)' }[r] || '#999')
 
 const filteredList = computed(() => {
-  if (!searchKey.value) return list.value
-  return list.value.filter(u => u.username?.includes(searchKey.value) || u.realName?.includes(searchKey.value))
+  // 待审核筛选优先：只看 status=0 的商家
+  let rows = list.value
+  if (pendingOnly.value) {
+    rows = rows.filter(u => u.role === 'MERCHANT' && u.status === 0)
+  }
+  if (!searchKey.value) return rows
+  return rows.filter(u => u.username?.includes(searchKey.value) || u.realName?.includes(searchKey.value))
 })
 
 const loadList = async () => { const res = await userApi.list(); list.value = res.data }
@@ -152,6 +172,10 @@ onMounted(loadList)
 .chip-label { font-size: 12px; color: #999; }
 .chip-num { font-size: 22px; font-weight: 700; color: #333; }
 .chip-num.green { color: #67c23a; } .chip-num.red { color: #f56c6c; } .chip-num.orange { color: #e6a23c; } .chip-num.blue { color: #409eff; }
+/* 可点击的统计块（待审核商家筛选） */
+.stat-chip.clickable { cursor: pointer; transition: all 0.2s; }
+.stat-chip.clickable:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.stat-chip.active { border: 1px solid #e6a23c; background: #fdf6ec; }
 .table-card { overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
 .user-cell { display: flex; align-items: center; gap: 12px; }
 .user-avatar { width: 36px; height: 36px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }

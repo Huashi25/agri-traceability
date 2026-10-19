@@ -42,9 +42,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      *
      * 安全背景（2026-10-19 加固）：注册接口是公开的（不走 JWT），
      * 曾经直接把请求体里的 role 写进数据库 —— 任何人 POST role=ADMIN 就能拿到管理员账号。
-     * 因此这里必须白名单限定：ADMIN / MERCHANT 只能由管理员在后台创建，不允许自助注册。
+     * 因此这里必须白名单限定：ADMIN 只能由管理员在后台创建，不允许自助注册。
+     * MERCHANT 允许自助申请，但要经过管理员审核（见 NEED_REVIEW_ROLES）。
      */
-    private static final Set<String> SELF_REGISTER_ROLES = new HashSet<>(Arrays.asList("CONSUMER", "FARMER"));
+    private static final Set<String> SELF_REGISTER_ROLES =
+            new HashSet<>(Arrays.asList("CONSUMER", "FARMER", "MERCHANT"));
+
+    /**
+     * 需要管理员审核才能启用的角色。
+     * 自助注册的商家先以 status=0 落库（登录接口会拒绝 status != 1 的账号），
+     * 管理员在「用户管理」里把状态拨到正常后才算审核通过。
+     */
+    private static final Set<String> NEED_REVIEW_ROLES = new HashSet<>(Arrays.asList("MERCHANT"));
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -104,7 +113,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             log.warn("注册失败: 用户名已存在, username={}", user.getUsername());
             return false;
         }
-        user.setStatus(1);
+        // 商家入驻需要审核：自助注册的商家先置为禁用，管理员启用后才能登录
+        user.setStatus(NEED_REVIEW_ROLES.contains(user.getRole()) ? 0 : 1);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         boolean success = save(user);
         if (success) {

@@ -60,7 +60,11 @@
                 <el-radio-group v-model="registerForm.role">
                   <el-radio value="CONSUMER">客户</el-radio>
                   <el-radio value="FARMER">农户</el-radio>
+                  <el-radio value="MERCHANT">商家</el-radio>
                 </el-radio-group>
+                <div v-if="registerForm.role === 'MERCHANT'" class="role-hint">
+                  商家入驻需管理员审核，提交后请等待审核通过再登录
+                </div>
               </el-form-item>
               <el-button type="primary" @click="handleRegister" size="large" style="width: 100%; margin-top: 10px; border-radius: 8px; height: 48px; font-size: 16px;">注 册</el-button>
             </el-form>
@@ -74,7 +78,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '../api'
 import { useUserStore } from '../stores/user'
 import { useCartStore } from '../stores/cart'
@@ -117,6 +121,16 @@ const handleRegister = async () => {
   }
   try {
     await userApi.register(registerForm.value)
+    if (registerForm.value.role === 'MERCHANT') {
+      // 商家注册后状态是待审核（status=0），此时登录会被后端拒绝，因此不自动跳到登录页
+      ElMessageBox.alert(
+        '入驻申请已提交，请等待管理员审核。审核通过后即可用该账号登录经营。',
+        '提交成功',
+        { confirmButtonText: '知道了', type: 'success' }
+      )
+      registerForm.value = { username: '', password: '', realName: '', phone: '', role: 'CONSUMER' }
+      return
+    }
     ElMessage.success('注册成功，请登录')
     activeTab.value = 'login'
     loginForm.value.username = registerForm.value.username
@@ -239,6 +253,13 @@ const handleRegister = async () => {
 .login-tabs :deep(.el-form-item__label) {
   font-weight: 500;
   color: #555;
+}
+/* 商家入驻提示：只在选中「商家」时出现 */
+.role-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #e6a23c;
+  line-height: 1.5;
 }
 @media (max-width: 768px) {
   .login-left { display: none; }
