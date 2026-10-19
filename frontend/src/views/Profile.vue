@@ -23,7 +23,7 @@
           <span class="role-badge" :class="userInfo.role?.toLowerCase()">{{ roleLabel }}</span>
         </div>
       </div>
-      <button class="btn-edit" @click="editDialog = true">
+      <button class="btn-edit" @click="openEdit">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         编辑资料
       </button>
@@ -204,6 +204,21 @@ const loadProfile = async () => {
   } catch (e) { /* ignore */ }
 }
 
+/**
+ * 打开编辑资料弹窗。
+ * 每次打开都从当前 userInfo 重新回填，而不是只在 onMounted 赋一次值 ——
+ * loadProfile 是异步的，挂载时 userInfo 还是空对象，早赋值会把空格子带进弹窗。
+ * 资料全部非必填，留空即保存为空，不做强制校验。
+ */
+const openEdit = () => {
+  editForm.value = {
+    realName: userInfo.value.realName || '',
+    phone: userInfo.value.phone || '',
+    email: userInfo.value.email || ''
+  }
+  editDialog.value = true
+}
+
 const saveProfile = async () => {
   saving.value = true
   try {
@@ -226,11 +241,6 @@ const saveProfile = async () => {
 
 onMounted(() => {
   loadProfile()
-  editForm.value = {
-    realName: userInfo.value.realName || '',
-    phone: userInfo.value.phone || '',
-    email: userInfo.value.email || ''
-  }
 })
 </script>
 

@@ -50,11 +50,9 @@
               <el-form-item label="密码">
                 <el-input v-model="registerForm.password" type="password" placeholder="请输入 6-20 位密码" show-password prefix-icon="Lock" size="large" minlength="6" maxlength="20" />
               </el-form-item>
-              <el-form-item label="真实姓名">
-                <el-input v-model="registerForm.realName" placeholder="请输入真实姓名" size="large" />
-              </el-form-item>
-              <el-form-item label="手机号">
-                <el-input v-model="registerForm.phone" placeholder="请输入手机号" size="large" />
+              <!-- 确认密码：只在注册时做一致性校验，不提交给后端 -->
+              <el-form-item label="确认密码">
+                <el-input v-model="registerForm.confirmPassword" type="password" placeholder="请再次输入密码" show-password prefix-icon="Lock" size="large" minlength="6" maxlength="20" @keyup.enter="handleRegister" />
               </el-form-item>
               <el-form-item label="注册身份">
                 <el-radio-group v-model="registerForm.role">
@@ -66,6 +64,8 @@
                   商家入驻需管理员审核，提交后请等待审核通过再登录
                 </div>
               </el-form-item>
+              <!-- 资料非必填说明：注册只收账号信息，资料留到个人中心按需补充 -->
+              <div class="optional-hint">真实姓名、手机号等资料可在注册后到「个人中心 → 编辑资料」按需补充，不填也能正常使用。</div>
               <el-button type="primary" @click="handleRegister" size="large" style="width: 100%; margin-top: 10px; border-radius: 8px; height: 48px; font-size: 16px;">注 册</el-button>
             </el-form>
           </el-tab-pane>
@@ -89,7 +89,12 @@ const cartStore = useCartStore()
 const activeTab = ref('login')
 
 const loginForm = ref({ username: '', password: '' })
-const registerForm = ref({ username: '', password: '', realName: '', phone: '', role: 'CONSUMER' })
+// 注册表单：只收账号必需信息（用户名 + 密码 + 确认密码 + 身份）
+// 真实姓名/手机号不再在注册时收集，统一放到个人中心按需补充
+const registerForm = ref({ username: '', password: '', confirmPassword: '', role: 'CONSUMER' })
+
+/** 获取一份干净的注册表单初值（重置用，避免各地手写对象漏字段） */
+const emptyRegisterForm = () => ({ username: '', password: '', confirmPassword: '', role: 'CONSUMER' })
 
 const handleLogin = async () => {
   if (!loginForm.value.username || !loginForm.value.password) {
@@ -119,8 +124,19 @@ const handleRegister = async () => {
     ElMessage.warning('密码长度必须为 6-20 位')
     return
   }
+  // 两次密码必须一致：只在前端比对，confirmPassword 不发送给后端
+  if (registerForm.value.password !== registerForm.value.confirmPassword) {
+    ElMessage.warning('两次输入的密码不一致')
+    return
+  }
+  // 显式构造提交体，避免把 confirmPassword 这类纯前端字段带到接口上
+  const payload = {
+    username: registerForm.value.username,
+    password: registerForm.value.password,
+    role: registerForm.value.role
+  }
   try {
-    await userApi.register(registerForm.value)
+    await userApi.register(payload)
     if (registerForm.value.role === 'MERCHANT') {
       // 商家注册后状态是待审核（status=0），此时登录会被后端拒绝，因此不自动跳到登录页
       ElMessageBox.alert(
@@ -128,13 +144,14 @@ const handleRegister = async () => {
         '提交成功',
         { confirmButtonText: '知道了', type: 'success' }
       )
-      registerForm.value = { username: '', password: '', realName: '', phone: '', role: 'CONSUMER' }
+      registerForm.value = emptyRegisterForm()
       return
     }
     ElMessage.success('注册成功，请登录')
     activeTab.value = 'login'
     loginForm.value.username = registerForm.value.username
     loginForm.value.password = registerForm.value.password
+    registerForm.value = emptyRegisterForm()
   } catch (e) { /* handled by interceptor */ }
 }
 </script>
@@ -260,6 +277,13 @@ const handleRegister = async () => {
   font-size: 12px;
   color: #e6a23c;
   line-height: 1.5;
+}
+/* 资料可选项说明：弱化处理，不抢主流程 */
+.optional-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.6;
 }
 @media (max-width: 768px) {
   .login-left { display: none; }

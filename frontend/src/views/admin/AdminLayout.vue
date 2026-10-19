@@ -102,7 +102,9 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <!-- 个人中心：注册时不再收集姓名/手机号，管理端必须留一个补充入口 -->
+                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -165,6 +167,8 @@ const onMenuSelect = () => {
 /** 头像下拉的指令分发：目前只有退出登录一项 */
 const onUserCommand = (command) => {
   if (command === 'logout') logout()
+  // 个人中心是前台路由，跳过去后可用左侧菜单或浏览器返回回到后台
+  if (command === 'profile') router.push('/profile')
 }
 
 /** 退出登录：二次确认后清空登录态并回到登录页 */
