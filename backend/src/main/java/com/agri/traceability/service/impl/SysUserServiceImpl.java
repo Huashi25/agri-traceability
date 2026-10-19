@@ -11,8 +11,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 用户服务实现：登录、注册，以及用户信息的保存与更新。
@@ -33,6 +36,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private static final int PASSWORD_MAX_LEN = 20;
     /** BCrypt 密文前缀，用于判断密码是否已加密 */
     private static final String BCRYPT_PREFIX = "$2a$";
+
+    /**
+     * 允许"自助注册"的角色白名单。
+     *
+     * 安全背景（2026-10-19 加固）：注册接口是公开的（不走 JWT），
+     * 曾经直接把请求体里的 role 写进数据库 —— 任何人 POST role=ADMIN 就能拿到管理员账号。
+     * 因此这里必须白名单限定：ADMIN / MERCHANT 只能由管理员在后台创建，不允许自助注册。
+     */
+    private static final Set<String> SELF_REGISTER_ROLES = new HashSet<>(Arrays.asList("CONSUMER", "FARMER"));
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -73,13 +85,25 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 注册入口必须先过密码强度校验，长度不合规直接抛错（由 Controller 转成提示）
         validatePassword(user.getPassword());
 
+        // 角色白名单：不传默认普通客户；传了就必须在允许范围内，防止伪造 ADMIN/MERCHANT
+        String role = user.getRole();
+        if (role == null || role.trim().isEmpty()) {
+            user.setRole("CONSUMER");
+        } else {
+            String normalized = role.trim().toUpperCase();
+            if (!SELF_REGISTER_ROLES.contains(normalized)) {
+                log.warn("注册被拒绝: 非法角色 username={}, role={}", user.getUsername(), role);
+                throw new IllegalArgumentException("注册身份不合法");
+            }
+            user.setRole(normalized);
+        }
+
         QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
         wrapper.eq("username", user.getUsername());
         if (count(wrapper) > 0) {
             log.warn("注册失败: 用户名已存在, username={}", user.getUsername());
             return false;
         }
-        if (user.getRole() == null) user.setRole("CONSUMER");
         user.setStatus(1);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         boolean success = save(user);
