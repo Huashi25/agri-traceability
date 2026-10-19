@@ -202,7 +202,7 @@ java -jar target/traceability-1.0.0.jar
 
 或开发模式：`mvn spring-boot:run`
 
-数据库账号密码可通过环境变量覆盖，未设置时使用默认值 `root / root`：
+数据库连接信息见 `backend/src/main/resources/application.yml`。**生产环境请通过环境变量覆盖，不要沿用本地开发默认值：**
 
 ```bash
 # PowerShell
@@ -222,14 +222,19 @@ npm run dev
 
 访问 <http://localhost:5173>，前端已配置代理转发 `/api` 到 `8080`。
 
-### 6.5 默认账号
+### 6.5 演示账号
 
-| 用户名 | 密码 | 角色 |
+初始化脚本会写入四个演示账号，分别对应四种角色：
+
+| 用户名 | 角色 | 权限范围 |
 |---|---|---|
-| `admin` | `admin123` | ADMIN（全部权限） |
-| `merchant` | `123456` | MERCHANT（商品 / 订单） |
-| `farmer01` | `123456` | FARMER（产地 / 批次，关联农户「王建国」） |
-| `consumer` | `123456` | CONSUMER（购物 / 溯源查询） |
+| `admin` | ADMIN | 全部权限 |
+| `merchant` | MERCHANT | 自己名下的商品与订单、溯源批次、库存预警、待发货工作台 |
+| `farmer01` | FARMER | 自家产地信息与溯源批次（关联农户「王建国」） |
+| `consumer` | CONSUMER | 购物、下单、溯源查询 |
+
+初始密码在 `backend/sql/init.sql` 中随账号一起写入，首次登录后请立即通过「个人中心」修改。
+**生产环境请删除或重置全部演示账号。**
 
 ### 6.6 体验溯源功能
 
