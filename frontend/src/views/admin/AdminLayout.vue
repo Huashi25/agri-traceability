@@ -88,23 +88,24 @@
           </div>
         </div>
         <div class="header-user">
-          <button class="header-btn" @click="goHome" title="返回前端">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-            <span class="btn-label">返回前端</span>
-          </button>
-          <button class="header-btn logout-btn" @click="logout" title="退出登录">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            <span class="btn-label">退出登录</span>
-          </button>
-          <div class="avatar">{{ (userInfo?.username || 'A').charAt(0).toUpperCase() }}</div>
-          <div class="user-info-text">
-            <div class="user-name">{{ userInfo?.realName || userInfo?.username }}</div>
-            <div class="user-role">{{ roleLabel }}</div>
-          </div>
+          <!-- 头像区域做成下拉触发：返回前端走左侧菜单，退出登录收进这里 -->
+          <el-dropdown trigger="click" @command="onUserCommand">
+            <div class="user-trigger">
+              <div class="avatar">{{ (userInfo?.username || 'A').charAt(0).toUpperCase() }}</div>
+              <div class="user-info-text">
+                <div class="user-name">{{ userInfo?.realName || userInfo?.username }}</div>
+                <div class="user-role">{{ roleLabel }}</div>
+              </div>
+              <svg class="trigger-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
       <el-main class="content">
@@ -161,10 +162,12 @@ const onMenuSelect = () => {
   sidebarOpen.value = false
 }
 
-const goHome = () => {
-  router.push('/')
+/** 头像下拉的指令分发：目前只有退出登录一项 */
+const onUserCommand = (command) => {
+  if (command === 'logout') logout()
 }
 
+/** 退出登录：二次确认后清空登录态并回到登录页 */
 const logout = async () => {
   try {
     await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -361,21 +364,18 @@ const pageSubtitle = computed(() => {
   align-items: center;
   gap: 10px;
 }
-.header-btn {
+.user-trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-  color: #666;
-  font-size: 13px;
+  gap: 10px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 22px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s;
+  outline: none;
 }
-.header-btn:hover { background: #f5f5f5; color: #333; }
-.logout-btn:hover { color: #e74c3c; border-color: #e74c3c; background: #fef0f0; }
+.user-trigger:hover { background: #f5f5f5; }
+.trigger-caret { color: #999; flex-shrink: 0; }
 .avatar {
   width: 36px;
   height: 36px;
@@ -434,12 +434,6 @@ const pageSubtitle = computed(() => {
   }
   .user-info-text {
     display: none;
-  }
-  .btn-label {
-    display: none;
-  }
-  .header-btn {
-    padding: 6px 8px;
   }
   .content {
     padding: 12px;
