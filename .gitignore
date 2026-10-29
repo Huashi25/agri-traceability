@@ -50,6 +50,10 @@ application-secret.yml
 # 例外：.env.example 是模板，需要提交
 !.env.example
 
+# ---------- 5.1 Python 缓存 ----------
+# backend 下的校验脚本（check_entity_db.py / verify_rebuild.py）会生成 __pycache__
+__pycache__/
+*.pyc
 # ---------- 6. IDE / 编辑器 ----------
 .idea/
 *.iml

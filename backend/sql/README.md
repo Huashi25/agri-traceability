@@ -2,7 +2,7 @@
 
 数据库名：`agri_traceability`，字符集 `utf8mb4`。
 
-本目录共 8 个 SQL 脚本，累计创建 **23 张表**。脚本之间**存在依赖关系**，请按下方顺序执行。
+本目录共 11 个 SQL 脚本（其中 8 个用于建库/初始化，3 个是后期迁移/补列），累计创建 **23 张表**。脚本之间**存在依赖关系**，请按下方顺序执行。
 
 ---
 
@@ -18,6 +18,13 @@
 | 6 | `trace_sample_data.sql` | 4 条完整溯源链示例数据（批次 + 产地 + 质检 + 物流） | 无（仅 INSERT） | 是 |
 | 7 | `update_images.sql` | 为商品（id 1~15）回填图片 URL | 无（仅 UPDATE） | — |
 | 8 | `role_migration.sql` | **历史迁移脚本**，用于给旧库补 `FARMER` 角色 | 无（仅 ALTER + INSERT） | 是（测试账号） |
+| 9 | `product_merchant.sql` | **商品归属迁移**（2026-10-19）：`product` 加 `merchant_id BIGINT NULL` + `idx_merchant`；NULL = 平台自营 | 无（仅 ALTER + UPDATE） | 是（15 个商品回填给商家 id=5） |
+| 10 | `trace_batch_farmer.sql` | **批次归属迁移**（2026-10-19）：`trace_batch` 加 `farmer_id` + `idx_farmer` | 无（仅 ALTER + UPDATE） | 是（8 条按产地回填农户） |
+| 11 | `schema_sync.sql` | **表结构补列**（2026-10-29）：给 `product` 补 `original_price`/`sales_count`/`rating`/`review_count`，给 `order_info` 补 `payment_method`/`ship_time`/`receive_time` | 无（仅 ALTER） | — |
+
+> ⚠️ **第 9、10 个脚本在全新环境必须执行**：后端实体 `Product.merchantId`、`TraceBatch.farmerId` 已有这两个字段，
+> MyBatis-Plus 会把它们拼进 SELECT。若数据库缺这两列，商品 / 批次 / 后台看板接口会统一报
+> `Unknown column 'merchant_id' in 'field list'`，直接 500。
 
 ---
 
@@ -31,9 +38,13 @@ mysql -u root -p < expansion.sql          # 4. 扩展模块（必须在 new_modu
 mysql -u root -p < quality_standards.sql  # 5. 质量标准
 mysql -u root -p < trace_sample_data.sql  # 6. 溯源示例数据
 mysql -u root -p < update_images.sql      # 7. 商品图片
+mysql -u root -p < product_merchant.sql   # 8. 商品归属（merchant_id） —— 不可跳过
+mysql -u root -p < trace_batch_farmer.sql # 9. 批次归属（farmer_id）  —— 不可跳过
+mysql -u root -p < schema_sync.sql        # 10. 表结构补列 —— 不可跳过
 ```
 
-> **第 8 个脚本 `role_migration.sql` 在全新环境下不要执行**，原因见下文「三、注意事项」。
+> **序号 8 的 `role_migration.sql` 在全新环境下不要执行**（它是给旧库补 FARMER 角色的历史脚本），原因见下文「三、注意事项」。
+> 序号 9、10 的两个归属迁移脚本**则必须执行**。
 
 ---
 
@@ -76,8 +87,17 @@ UPDATE farmer_info SET longitude=109.5083, latitude=18.3200, ... WHERE name='王
 在 MySQL 8 默认严格模式（`STRICT_TRANS_TABLES`）下，字符串写入 `INT` 列会触发 `ERROR 1366 - Incorrect integer value`；非严格模式下会被静默转成 `0` 并产生 warning，导致公告分类失效。
 
 后端实体 `Announcement.java` 中该字段为 `private Integer type`，与表定义一致。
-**若要修复，应把 `expansion.sql` 中的字符串改为 `0/1/2`，或把列改为 `VARCHAR`。**（本次未改动任何 SQL 文件内容。）
+**✅ 已修（2026-10-29）**：`expansion.sql` 里 8 条公告的 type 已由字符串改为数字
+（`ACTIVITY`→`1`、`NOTICE`→`2`、`SYSTEM`→`0`），严格模式下可一次性执行通过。
+备份：`expansion.sql.bak-20261029-1315`。
 
+### 4.1 `schema_sync.sql` 必须执行（2026-10-29 新增）
+
+建表脚本原先漏了 7 个实体已经在用的列（`product` 4 个 + `order_info` 3 个），
+大概率是开发期用 IDE 手工 ALTER 加过、但没回写脚本。缺列时后端不会启动失败，
+而是等接口被调用时报 `Unknown column 'xxx' in 'field list'` 返回 500 —— 很难查。
+`schema_sync.sql` 就是补这 7 列的，**全新环境必须执行**。
+脚本末尾自带校验查询，正常应输出 7 行。
 ### 5. `update_images.sql` 带 BOM 头
 
 文件首字节为 UTF-8 BOM（`EF BB BF`）。多数客户端（MySQL CLI、Navicat、IDEA）可正常处理，个别工具可能把首个 `USE` 语句识别失败。如遇问题，去掉 BOM 后重新执行即可，内容不受影响。
