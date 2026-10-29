@@ -2,7 +2,7 @@
 
 数据库名：`agri_traceability`，字符集 `utf8mb4`。
 
-本目录共 11 个 SQL 脚本（其中 8 个用于建库/初始化，3 个是后期迁移/补列），累计创建 **23 张表**。脚本之间**存在依赖关系**，请按下方顺序执行。
+本目录共 12 个 SQL 脚本（其中 8 个用于建库/初始化，4 个是后期迁移/补列），累计创建 **23 张表**。脚本之间**存在依赖关系**，请按下方顺序执行。
 
 ---
 
@@ -16,11 +16,12 @@
 | 4 | `expansion.sql` | 功能扩展：时令、百科、食谱、问答；并为 `farmer_info` 增加地图字段 | `product_seasonal`、`knowledge_article`、`recipe`、`recipe_product`、`faq`；并 `ALTER TABLE farmer_info` 增加 5 列（经度 / 纬度 / 区域标签 / 产地描述 / 产地图片） | 是（商品、农户、公告、食谱等） |
 | 5 | `quality_standards.sql` | 把原先硬编码在 Controller 里的质量标准迁入数据库 | `quality_standards`、`trace_process_nodes` | 是 |
 | 6 | `trace_sample_data.sql` | 4 条完整溯源链示例数据（批次 + 产地 + 质检 + 物流） | 无（仅 INSERT） | 是 |
-| 7 | `update_images.sql` | 为商品（id 1~15）回填图片 URL | 无（仅 UPDATE） | — |
+| 7 | ~~`update_images.sql`~~ | **⚠️ 已废弃（2026-10-29）**：原本给图片字段回填 `trae-api-cn.mchost.guru` 的文生图 URL，该接口现已失效——对任何 prompt 都 302 跳到同一张 `default.jpeg` 占位图。**不要执行**，改用第 12 个脚本 | 无（仅 UPDATE） | — |
 | 8 | `role_migration.sql` | **历史迁移脚本**，用于给旧库补 `FARMER` 角色 | 无（仅 ALTER + INSERT） | 是（测试账号） |
 | 9 | `product_merchant.sql` | **商品归属迁移**（2026-10-19）：`product` 加 `merchant_id BIGINT NULL` + `idx_merchant`；NULL = 平台自营 | 无（仅 ALTER + UPDATE） | 是（15 个商品回填给商家 id=5） |
 | 10 | `trace_batch_farmer.sql` | **批次归属迁移**（2026-10-19）：`trace_batch` 加 `farmer_id` + `idx_farmer` | 无（仅 ALTER + UPDATE） | 是（8 条按产地回填农户） |
 | 11 | `schema_sync.sql` | **表结构补列**（2026-10-29）：给 `product` 补 `original_price`/`sales_count`/`rating`/`review_count`，给 `order_info` 补 `payment_method`/`ship_time`/`receive_time` | 无（仅 ALTER） | — |
+| 12 | `local_images.sql` | **本地图片绑定**（2026-10-29）：把 `product.image`、`knowledge_article.cover_image`、`recipe.cover_image`、`farmer_info.region_image` 共 34 个字段指向 `frontend/public/images/` 下的本地文件，彻底摆脱已失效的 Trae 文生图接口 | 无（仅 UPDATE） | — |
 
 > ⚠️ **第 9、10 个脚本在全新环境必须执行**：后端实体 `Product.merchantId`、`TraceBatch.farmerId` 已有这两个字段，
 > MyBatis-Plus 会把它们拼进 SELECT。若数据库缺这两列，商品 / 批次 / 后台看板接口会统一报
@@ -37,11 +38,13 @@ mysql -u root -p < missing_tables.sql     # 3. 通知 / 地址 / 收藏
 mysql -u root -p < expansion.sql          # 4. 扩展模块（必须在 new_modules.sql 之后）
 mysql -u root -p < quality_standards.sql  # 5. 质量标准
 mysql -u root -p < trace_sample_data.sql  # 6. 溯源示例数据
-mysql -u root -p < update_images.sql      # 7. 商品图片
+mysql -u root -p < local_images.sql       # 7. 本地图片（替代已废弃的 update_images.sql）
 mysql -u root -p < product_merchant.sql   # 8. 商品归属（merchant_id） —— 不可跳过
 mysql -u root -p < trace_batch_farmer.sql # 9. 批次归属（farmer_id）  —— 不可跳过
 mysql -u root -p < schema_sync.sql        # 10. 表结构补列 —— 不可跳过
 ```
+
+> **`update_images.sql` 不要执行**。它写的是 Trae 内部文生图接口，该接口现在对任何 prompt 都返回同一张占位图，执行后全站图片会变成同一张。图片统一由 `local_images.sql` 指向本地 `frontend/public/images/`。
 
 > **序号 8 的 `role_migration.sql` 在全新环境下不要执行**（它是给旧库补 FARMER 角色的历史脚本），原因见下文「三、注意事项」。
 > 序号 9、10 的两个归属迁移脚本**则必须执行**。
@@ -98,9 +101,18 @@ UPDATE farmer_info SET longitude=109.5083, latitude=18.3200, ... WHERE name='王
 而是等接口被调用时报 `Unknown column 'xxx' in 'field list'` 返回 500 —— 很难查。
 `schema_sync.sql` 就是补这 7 列的，**全新环境必须执行**。
 脚本末尾自带校验查询，正常应输出 7 行。
-### 5. `update_images.sql` 带 BOM 头
+### 5. `update_images.sql` 已废弃，不要执行
 
-文件首字节为 UTF-8 BOM（`EF BB BF`）。多数客户端（MySQL CLI、Navicat、IDEA）可正常处理，个别工具可能把首个 `USE` 语句识别失败。如遇问题，去掉 BOM 后重新执行即可，内容不受影响。
+这个脚本的文件首字节是 UTF-8 BOM（`EF BB BF`），部分客户端会把首个 `USE` 语句识别失败。
+但**这不是它被弃用的原因** —— 真正原因是它写的图片地址是 Trae IDE 内部的文生图接口
+（`trae-api-cn.mchost.guru/api/ide/v1/text_to_image`），2026-10-29 实测该接口对任何
+`prompt` 都 302 跳到同一张 `lf-cdn.trae.com.cn/obj/trae-ai-image/page_image/default.jpeg`，
+即**永远返回同一张占位图**。执行它会让全站商品图、百科封面、食谱封面、农户产地图
+全部变成同一张图。
+
+图片统一改由 `local_images.sql` 指向本地文件（`frontend/public/images/`，共 41 张、
+约 23MB，由 Vite 以站点根路径 `/images/xxx.jpg` 直接提供）。**全新环境执行
+`local_images.sql`，不要执行 `update_images.sql`。**
 
 ### 6. 初始密码是明文，启动后自动加密
 
